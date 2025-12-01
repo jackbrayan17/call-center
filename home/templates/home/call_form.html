@@ -1,0 +1,532 @@
+{% extends "base.html" %}
+{% block title %}Appel {{ company.name }}{% endblock %}
+{% block head_extra %}
+    <style>
+        .call-layout { display: grid; gap: 1rem; grid-template-columns: 1.15fr 0.85fr; }
+        .mic-overlay {
+            display: none;
+            position: fixed;
+        inset: 0;
+        background: rgba(8,12,24,0.75);
+        backdrop-filter: blur(8px);
+        align-items: center;
+        justify-content: center;
+        z-index: 20;
+    }
+    .mic-modal {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 1.5rem;
+        text-align: center;
+        width: min(420px, 90vw);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        animation: pop 260ms ease;
+    }
+    .mic-icon {
+        width: 82px; height: 82px;
+        border-radius: 24px;
+        background: radial-gradient(circle at 30% 30%, rgba(34,211,238,0.5), rgba(168,85,247,0.6));
+        display: grid;
+        place-items: center;
+        margin: 0 auto 1rem;
+        animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34,211,238,0.32);} 70%{box-shadow:0 0 0 18px rgba(34,211,238,0);}100%{box-shadow:0 0 0 0 rgba(34,211,238,0);} }
+    @keyframes pop { from { scale: 0.95; opacity: 0; } to { scale: 1; opacity: 1; } }
+    .call-card { background: rgba(255,255,255,0.02); border: 1px dashed var(--border); border-radius: 14px; padding: 1rem; }
+    .control-row { display:flex; gap:0.5rem; flex-wrap: wrap; }
+    @media(max-width:900px) { .call-layout { grid-template-columns: 1fr; } }
+    .rec-visual {
+        position: relative;
+        height: 14px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: 0.65rem;
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    .rec-visual .bar {
+        position: absolute;
+        inset: 0;
+        width: 0%;
+        background: linear-gradient(90deg, #22d3ee, #a855f7);
+        animation: recFlow 2s linear infinite;
+    }
+    @keyframes recFlow { from { transform: translateX(-40%);} to { transform: translateX(100%);} }
+    .spectrum {
+        display: grid;
+        grid-template-columns: repeat(24, 1fr);
+        gap: 4px;
+        align-items: end;
+        height: 70px;
+        margin-top: 0.6rem;
+    }
+    .spectrum span {
+        width: 100%;
+        height: 12px;
+        background: linear-gradient(180deg, #22d3ee, #7c3aed);
+        border-radius: 8px 8px 2px 2px;
+        transition: height 90ms ease;
+        box-shadow: 0 4px 12px rgba(34,211,238,0.25);
+    }
+</style>
+{% endblock %}
+{% block content %}
+<section class="panel fade-in">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+        <div>
+            <p class="pill">Appel sécurisé</p>
+            <h2 style="margin:0;">{{ company.name }}</h2>
+            <p class="muted" style="margin:0;">{{ company.location }} · {{ company.activity }}</p>
+        </div>
+        <a class="btn secondary" href="{% url 'call_list' %}">Retour aux appels</a>
+    </div>
+
+    <div class="call-layout" style="margin-top:1.25rem;">
+        <div class="call-card">
+            <div style="display:flex; align-items:center; gap:0.6rem; justify-content:space-between; flex-wrap:wrap;">
+                <h3 style="margin:0;">Informations entreprise</h3>
+                <button type="button" id="open-questionnaire" class="btn secondary" style="gap:0.35rem; min-width:auto; padding:0.55rem 0.8rem;">
+                    ❓ Questionnaire
+                </button>
+            </div>
+            <div class="grid" style="grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:0.75rem; margin-top:0.5rem;">
+                <div>
+                    <p class="muted">N°</p>
+                    <div>{{ company.id }}</div>
+                </div>
+                <div>
+                    <p class="muted">Téléphone</p>
+                    <div>{{ company.phone }}</div>
+                </div>
+                <div>
+                    <p class="muted">Produit / filière</p>
+                    <div>{{ company.product }}</div>
+                </div>
+                <div>
+                    <p class="muted">Activité</p>
+                    <div>{{ company.activity }}</div>
+                </div>
+                <div>
+                    <p class="muted">Localisation</p>
+                    <div>{{ company.location }}</div>
+                </div>
+                <div>
+                    <p class="muted">Régime / Forme</p>
+                    <div>{{ company.legal_form }}</div>
+                </div>
+                <div>
+                    <p class="muted">NIU</p>
+                    <div>{{ company.niu }}</div>
+                </div>
+                <div>
+                    <p class="muted">Validité score</p>
+                    <div>{{ company.validity_score }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="call-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                <h3 style="margin:0;">Contrôle enregistrement</h3>
+                <a href="#" id="skip-record" class="muted">Continuer sans enregistrement vocal</a>
+            </div>
+            <div class="control-row" style="margin-top:0.75rem;">
+                <button class="btn" type="button" id="start-mic">
+                    <span id="mic-anim" style="display:inline-flex;align-items:center;gap:0.4rem;">
+                        <span class="dot" style="width:10px;height:10px;background:#22d3ee;box-shadow:0 0 10px rgba(34,211,238,0.8);"></span>
+                        Lancer le micro
+                    </span>
+                </button>
+                <button class="btn secondary" type="button" id="pause-mic" style="display:none;">Pause</button>
+                <button class="btn secondary" type="button" id="resume-mic" style="display:none;">Continuer</button>
+            </div>
+            <div class="rec-visual">
+                <div class="bar" id="rec-bar"></div>
+            </div>
+            <div class="spectrum" id="rec-spectrum"></div>
+            <p class="muted" id="record-status" style="margin-top:0.5rem;">En attente de démarrage.</p>
+        </div>
+    </div>
+
+    <form method="post" style="margin-top:1.5rem;" id="call-form">
+        {% csrf_token %}
+        {{ form.status_marked_at }}
+        {{ form.recording_data }}
+        {{ form.recording_started }}
+        {{ form.skip_without_rec }}
+        {{ form.recording_mime }}
+        <div class="grid" style="gap:1rem; grid-template-columns:repeat(auto-fit, minmax(260px,1fr));">
+            <div>
+                <label class="muted">Statut numéros</label>
+                {{ form.status_numero }}
+            </div>
+            <div id="call-status-wrap" style="display:none;">
+                <label class="muted">Statut appel</label>
+                {{ form.call_status }}
+            </div>
+            <div id="presentation-wrap" style="display:none;">
+                <label class="muted">Présentation</label>
+                {{ form.presentation_level }}
+            </div>
+            <div id="libre-wrap" style="display:none;">
+                <label class="muted">Questions libres</label>
+                {{ form.questions_libres_level }}
+            </div>
+            <div id="oriente-wrap" style="display:none;">
+                <label class="muted">Questions orientées</label>
+                {{ form.questions_orientees_level }}
+            </div>
+            <div>
+                <label class="muted">Statut enquête</label>
+                <input class="input" id="enquete-status" type="text" readonly value="Incomplet">
+            </div>
+            <div>
+                <label class="muted">Date & heure</label>
+                <input class="input" id="timestamp" type="text" readonly placeholder="Sélectionnez un statut">
+            </div>
+        </div>
+        <div style="display:flex; gap:0.75rem; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn" type="submit">Valider l'enregistrement</button>
+            <button class="btn secondary" type="reset">Recommencer</button>
+        </div>
+    </form>
+</section>
+
+<div class="mic-overlay" id="mic-modal">
+    <div class="mic-modal">
+        <div class="mic-icon">
+            🎙️
+        </div>
+        <h3>Micro en cours d'activation…</h3>
+        <p class="muted">Autorisez l'accès à votre micro sur ce navigateur.</p>
+        <div class="control-row" style="justify-content:center; margin-top:1rem;">
+            <button class="btn" type="button" id="close-mic">Continuer</button>
+        </div>
+    </div>
+</div>
+<div class="mic-overlay" id="questionnaire-modal">
+    <div class="mic-modal" style="max-width:720px; text-align:left;">
+        <h3 style="margin-top:0;">Questionnaire  </h3>
+        <span>{{ company.name }}</span>
+        <div class="muted" style="max-height:55vh; overflow-y:auto; white-space:pre-line;">
+<h3>⛔🛑 N'oubliez pas d'activer l'enregistrement ‼️</h3>
+
+Bonjour Monsieur, nous sommes le cabinet Naumur mandaté par l’APME afin de réaliser un document diagnostic. Notre mission consiste à collecter les informations relatives aux difficultés que rencontrent les PME pour accéder aux différents marchés.  
+
+Notre démarche vise à avoir votre point de vue en tant qu’expert sur ces problématiques. 
+
+A cet effet, nous avons identifié 8 niveaux de marchés que sont : 
+
+Marché de proximité (ultra-local) est qui regroupe les ventes dans le cercle familial, de voisinage ou dans l’espace domestique. 
+
+Marché local (marchés de la localité) ce sont les marchés de quartier, villages ou petites localités. 
+
+Marché urbain (ville de référence) Marchés municipaux et distributeurs urbains semi-formels 
+
+Marchés interurbains (hors région ou département) C’est un marché essentiel aux PME rurales souhaitant se projeter 
+
+Grande distribution / marchés formels ce marché inclut supermarchés, grandes et moyennes surfaces (GMS), hôtels, CHR. 
+
+Marché institutionnel, ce marché regroupe commandes publiques, approvisionnements des cantines, prisons, hôpitaux, achats organisationnels (PAM, UNHCR, écoles, organismes internationaux). 
+
+Marché numérique (e-commerce), il inclut plateformes comme Jumia, Glovo, Facebook Marketplace, Kiro’o. 
+
+Marchés extérieurs (export régional et international) CEMAC / CEEAC, ZLECAF, Union Européenne, Moyen-Orient, etc 
+
+Dans le cadre notre étude, nous intervenons dans les filières volaille, huile de palme, plantains, lait, poisson, manioc, fruits et légumes.  
+
+D’après vos connaissances, nous aimerons savoir dans quelles filières les PME interviennent le plus, afin de dresser un tableau et d’avoir une photo dans ce domaine ? (on ne vous demande pas les freins et les solutions, cela fera l’objet d’une recherche antérieure). Si un document récapitulatif de ces solutions existe, nous vous saurions gré de le mettre à notre disposition. 
+
+Selon votre institution quels sont les freins à l’accès des PME à ces marchés ? 
+
+Quelles sont les solutions que votre institution propose pour remédier à ces problèmes ? 
+
+Quelles sont les solutions que votre institution a déjà mises en place à cet effet ?</div>
+        <div class="control-row" style="justify-content:flex-end; margin-top:1rem;">
+            <button class="btn" type="button" id="close-questionnaire">Fermer</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const statusNumero = document.getElementById("id_status_numero");
+    const callStatus = document.getElementById("id_call_status");
+    const presentation = document.getElementById("id_presentation_level");
+    const libre = document.getElementById("id_questions_libres_level");
+    const oriente = document.getElementById("id_questions_orientees_level");
+    const timestampField = document.getElementById("timestamp");
+    const hiddenTimestamp = document.getElementById("id_status_marked_at");
+    const enqueteStatus = document.getElementById("enquete-status");
+    const callStatusWrap = document.getElementById("call-status-wrap");
+    const presentationWrap = document.getElementById("presentation-wrap");
+    const libreWrap = document.getElementById("libre-wrap");
+    const orienteWrap = document.getElementById("oriente-wrap");
+    const micModal = document.getElementById("mic-modal");
+    const questionnaireModal = document.getElementById("questionnaire-modal");
+    document.getElementById("open-questionnaire").addEventListener("click", () => {
+        questionnaireModal.style.display = "flex";
+    });
+    document.getElementById("close-questionnaire").addEventListener("click", () => {
+        questionnaireModal.style.display = "none";
+    });
+    const recordStatus = document.getElementById("record-status");
+    const recordingData = document.getElementById("id_recording_data");
+    const recordingStarted = document.getElementById("id_recording_started");
+    const skipWithoutRec = document.getElementById("id_skip_without_rec");
+    const resumeBtn = document.getElementById("resume-mic");
+    const pauseBtn = document.getElementById("pause-mic");
+
+    function setTimestamp() {
+        const now = new Date();
+        const iso = now.toISOString();
+        hiddenTimestamp.value = iso;
+        timestampField.value = now.toLocaleString("fr-FR");
+    }
+
+    function updateEnqueteStatus() {
+        if (!enqueteStatus) return;
+        let statusLabel = "Incomplet";
+        if (callStatus.value === "accepted") {
+            const levels = [presentation.value, libre.value, oriente.value];
+            if (levels.every((v) => v === "complete")) {
+                statusLabel = "Complet";
+            } else if (levels.some((v) => v === "partial")) {
+                statusLabel = "Partiel";
+            }
+        }
+        enqueteStatus.value = statusLabel;
+    }
+
+    function blockStatuses(disabled) {
+        statusNumero.disabled = disabled;
+        callStatus.disabled = disabled;
+        presentation.disabled = disabled;
+        libre.disabled = disabled;
+        oriente.disabled = disabled;
+    }
+
+    blockStatuses(true);
+    updateEnqueteStatus();
+
+    statusNumero.addEventListener("change", () => {
+        setTimestamp();
+        if (statusNumero.value === "answered") {
+            callStatusWrap.style.display = "block";
+        } else {
+            callStatusWrap.style.display = "none";
+            presentationWrap.style.display = "none";
+            libreWrap.style.display = "none";
+            orienteWrap.style.display = "none";
+            callStatus.value = "";
+            presentation.value = "";
+            libre.value = "";
+            oriente.value = "";
+        }
+        updateEnqueteStatus();
+    });
+
+    callStatus.addEventListener("change", () => {
+        const showExtras = callStatus.value === "accepted";
+        presentationWrap.style.display = showExtras ? "block" : "none";
+        libreWrap.style.display = showExtras ? "block" : "none";
+        orienteWrap.style.display = showExtras ? "block" : "none";
+        if (!showExtras) {
+            presentation.value = "";
+            libre.value = "";
+            oriente.value = "";
+        }
+        updateEnqueteStatus();
+    });
+
+    [presentation, libre, oriente].forEach((el) => {
+        el.addEventListener("change", updateEnqueteStatus);
+    });
+
+    let mediaRecorder = null;
+    let chunks = [];
+    let streamRef = null;
+    let recordingReady = false;
+    const recBar = document.getElementById("rec-bar");
+    const spectrum = document.getElementById("rec-spectrum");
+    let audioCtx = null;
+    let analyser = null;
+    let spectrumId = null;
+    let selectedMime = "";
+    let formSubmitted = false;
+    const companyId = {{ company.id }};
+    const csrftoken = document.querySelector('input[name=csrfmiddlewaretoken]').value;
+
+    // Build spectrum bars
+    if (spectrum && spectrum.children.length === 0) {
+        for (let i = 0; i < 24; i++) {
+            const bar = document.createElement("span");
+            bar.style.height = "12px";
+            spectrum.appendChild(bar);
+        }
+    }
+
+    async function startMic() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            recordStatus.textContent = "Micro non supporté par ce navigateur.";
+            return;
+        }
+
+        const candidates = [
+            "audio/mpeg", // mp3
+            "audio/mp4;codecs=opus",
+            "audio/mp4",
+            "audio/webm;codecs=opus",
+            "audio/webm",
+        ];
+        selectedMime = candidates.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+        if (!selectedMime) {
+            recordStatus.textContent = "Enregistrement non supporté sur ce navigateur.";
+            return;
+        }
+        try {
+            streamRef = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(streamRef, { mimeType: selectedMime });
+            chunks = [];
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) chunks.push(e.data);
+            };
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(chunks, { type: "audio/webm" });
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    recordingData.value = reader.result;
+                    document.getElementById("id_recording_mime").value = selectedMime;
+                    recordingReady = true;
+                };
+                reader.readAsDataURL(blob);
+                pauseBtn.style.display = "none";
+                resumeBtn.style.display = "none";
+                recBar.style.width = "0%";
+                recBar.style.animation = "none";
+                stopSpectrum();
+            };
+            mediaRecorder.start();
+            recordingStarted.value = "true";
+            skipWithoutRec.value = "";
+            recordStatus.textContent = "Enregistrement en cours...";
+            blockStatuses(false);
+            pauseBtn.style.display = "inline-flex";
+            recBar.style.width = "100%";
+            recBar.style.animation = "recFlow 1.5s linear infinite";
+
+            // spectrum visual
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 64;
+            const source = audioCtx.createMediaStreamSource(streamRef);
+            source.connect(analyser);
+            animateSpectrum();
+        } catch (err) {
+            recordStatus.textContent = "Autorisation micro refusée.";
+        }
+    }
+
+    document.getElementById("start-mic").addEventListener("click", () => {
+        micModal.style.display = "flex";
+        startMic();
+    });
+
+    document.getElementById("close-mic").addEventListener("click", () => {
+        micModal.style.display = "none";
+    });
+
+    pauseBtn.addEventListener("click", () => {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+            mediaRecorder.pause();
+            recordStatus.textContent = "Enregistrement en pause.";
+            pauseBtn.style.display = "none";
+            resumeBtn.style.display = "inline-flex";
+        }
+    });
+
+    resumeBtn.addEventListener("click", () => {
+        if (mediaRecorder && mediaRecorder.state === "paused") {
+            mediaRecorder.resume();
+            recordStatus.textContent = "Enregistrement en cours...";
+            pauseBtn.style.display = "inline-flex";
+            resumeBtn.style.display = "none";
+            recBar.style.animationPlayState = "running";
+        }
+    });
+
+    document.getElementById("skip-record").addEventListener("click", (e) => {
+        e.preventDefault();
+        skipWithoutRec.value = "true";
+        recordingStarted.value = "";
+        blockStatuses(false);
+        recordStatus.textContent = "Mode sans enregistrement vocal.";
+        recBar.style.width = "0%";
+        recBar.style.animation = "none";
+        stopSpectrum();
+    });
+
+    document.getElementById("call-form").addEventListener("submit", async (e) => {
+        formSubmitted = true;
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+            e.preventDefault();
+            mediaRecorder.stop();
+            if (streamRef) {
+                streamRef.getTracks().forEach((t) => t.stop());
+            }
+            const waitForData = () => new Promise((resolve) => {
+                const check = () => {
+                    if (recordingReady || recordingData.value) return resolve();
+                    setTimeout(check, 100);
+                };
+                check();
+            });
+            await waitForData();
+            e.target.submit();
+        }
+    });
+
+    function resetStatus() {
+        if (formSubmitted) return;
+        if (recordingData.value || skipWithoutRec.value) return;
+        fetch("{% url 'reset_company_status' company.id %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrftoken,
+            },
+            keepalive: true,
+        }).catch(() => {});
+    }
+
+    window.addEventListener("beforeunload", resetStatus);
+
+    function animateSpectrum() {
+        if (!analyser || !spectrum) return;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        const bars = spectrum.children;
+        for (let i = 0; i < bars.length; i++) {
+            const v = dataArray[i] || 0;
+            const h = 12 + (v / 255) * 58;
+            bars[i].style.height = `${h}px`;
+        }
+        spectrumId = requestAnimationFrame(animateSpectrum);
+    }
+
+    function stopSpectrum() {
+        if (spectrumId) cancelAnimationFrame(spectrumId);
+        spectrumId = null;
+        if (spectrum) {
+            Array.from(spectrum.children).forEach((bar) => (bar.style.height = "12px"));
+        }
+        if (audioCtx) {
+            audioCtx.close().catch(() => {});
+            audioCtx = null;
+            analyser = null;
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Appels{% endblock %}
+{% block head_extra %}
+<style>
+    .page-anim { animation: slideFade 280ms ease; }
+    @keyframes slideFade { from { opacity:0; transform: translateY(8px);} to { opacity:1; transform: translateY(0);} }
+    .pager { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
+    .pager button, .pager a {
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,0.06);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 0.5rem 0.85rem;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 160ms ease;
+    }
+    .pager .current { background: linear-gradient(120deg, var(--accent), var(--accent-2)); color: #0b1021; border: none; }
+    .pager button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .pager-numbers { display:flex; gap:0.4rem; flex-wrap:wrap; }
+    .pager-numbers a, .pager-numbers span {
+        padding: 0.4rem 0.75rem;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(255,255,255,0.05);
+        text-decoration: none;
+        color: var(--text);
+    }
+    .pager-numbers .active { background: linear-gradient(120deg, var(--accent), var(--accent-2)); color:#0b1021; border:none; }
+</style>
+{% endblock %}
+{% block content %}
+{% if welcome_user %}
+<div id="welcome-overlay" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:30;background:rgba(11,16,33,0.75);backdrop-filter:blur(8px);">
+    <div style="background:linear-gradient(135deg, rgba(34,211,238,0.18), rgba(168,85,247,0.18));border:1px solid rgba(255,255,255,0.08);padding:1.5rem 2rem;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);animation:popIn 420ms ease;">
+        <p class="pill" style="margin:0 auto 0.5rem auto; width:max-content;">Session ouverte</p>
+        <h3 style="margin:0;text-align:center;">Bienvenue, {{ welcome_user }} ✨</h3>
+    </div>
+</div>
+<style>
+@keyframes popIn { from { opacity:0; transform:translateY(12px) scale(.96);} to {opacity:1; transform:translateY(0) scale(1);} }
+</style>
+<script>
+    setTimeout(() => {
+        const overlay = document.getElementById("welcome-overlay");
+        if (overlay) overlay.style.display = "none";
+    }, 1400);
+</script>
+{% endif %}
+<section class="panel page-anim">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+        <div>
+            <p class="pill">Parcours d'appel</p>
+            <h2 style="margin:0;">Entreprises à traiter</h2>
+        </div>
+        <a class="btn secondary" href="{% url 'dashboard' %}">Retour Dashboard</a>
+    </div>
+    <div style="overflow-x:auto; margin-top:1rem;">
+        <table>
+            <thead>
+                <tr>
+                    <th>N°</th>
+                    <th>Entreprise</th>
+                    <th>Téléphone</th>
+                    <th>Produit/Filière</th>
+                    <th>Statut enquête</th>
+                    <th>Statut</th>
+                    <th>Inspecteur</th>
+                    <th>Enregistrement</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in page_obj.object_list %}
+                    {% with company=row.company rec=row.recording inspector=row.inspector enquete=row.enquete %}
+                    <tr data-company-id="{{ company.id }}">
+                        <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+                        <td>{{ company.name }}</td>
+                        <td>{{ company.phone }}</td>
+                        <td>{{ company.product }}</td>
+                        <td>
+                            {% if enquete %}
+                                <span class="badge">{{ enquete }}</span>
+                            {% else %}
+                                <span class="muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge status-badge {{ company.status|default:'default' }}">
+                                <span class="dot"></span>{{ company.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="inspector-cell">{{ inspector|default:"-" }}</td>
+                        <td>
+                            {% if rec %}
+                                <audio id="audio-{{ company.id }}" preload="metadata">
+                                    <source src="{{ rec.file.url }}" type="audio/webm">
+                                </audio>
+                                <button class="btn secondary play-btn" data-audio-id="audio-{{ company.id }}" style="min-width:90px;">▶ Lecture</button>
+                            {% else %}
+                                <span class="muted">Aucun</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if company.status == "done" %}
+                                <a class="btn secondary action-btn" style="pointer-events:none; opacity:0.6;">Déjà appelé</a>
+                            {% else %}
+                                <a class="btn action-btn" href="{% url 'call_form' company.id %}">Lancer un appel</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endwith %}
+                {% empty %}
+                    <tr><td colspan="9" class="muted">Aucune entreprise disponible.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="pager" style="margin-top:1rem;">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}">‹ Précédent</a>
+        {% else %}
+            <button disabled>‹ Précédent</button>
+        {% endif %}
+        <div class="pager-numbers">
+            {% for num in page_obj.paginator.page_range %}
+                {% if num == page_obj.number %}
+                    <span class="active">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <a href="?page={{ num }}">{{ num }}</a>
+                {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                    <a href="?page={{ num }}">{{ num }}</a>
+                {% elif forloop.first or forloop.last %}
+                    <span>…</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}">Suivant ›</a>
+        {% else %}
+            <button disabled>Suivant ›</button>
+        {% endif %}
+    </div>
+</section>
+
+{% block scripts %}
+<script>
+    let currentAudio = null;
+    let currentBtn = null;
+    document.querySelectorAll(".play-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const audio = document.getElementById(btn.dataset.audioId);
+            if (!audio) return;
+
+            if (currentAudio && currentAudio !== audio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                if (currentBtn) currentBtn.textContent = "▶ Lecture";
+            }
+
+            if (audio.paused) {
+                audio.play();
+                btn.textContent = "⏸ Pause";
+                currentAudio = audio;
+                currentBtn = btn;
+                audio.onended = () => {
+                    btn.textContent = "▶ Lecture";
+                    currentAudio = null;
+                    currentBtn = null;
+                };
+            } else {
+                audio.pause();
+                btn.textContent = "▶ Lecture";
+            }
+        });
+    });
+
+    // Polling des statuts pour éviter les doublons
+    const statusMap = {
+        pending: { cls: "pending", label: "Pas encore appelé" },
+        in_progress: { cls: "in_progress", label: "En cours" },
+        callback: { cls: "callback", label: "Rappel" },
+        done: { cls: "done", label: "Déjà appelé" },
+    };
+
+    function refreshStatuses() {
+        fetch("{% url 'company_statuses' %}")
+            .then((res) => res.json())
+            .then((data) => {
+                (data.companies || []).forEach((c) => {
+                    const row = document.querySelector(`tr[data-company-id="${c.id}"]`);
+                    if (!row) return;
+                    const badge = row.querySelector(".status-badge");
+                    const button = row.querySelector(".action-btn");
+                    const insp = row.querySelector(".inspector-cell");
+                    const info = statusMap[c.status] || statusMap.pending;
+                    if (badge) {
+                        badge.className = `badge status-badge ${info.cls}`;
+                        const dot = badge.querySelector(".dot");
+                        if (!dot) {
+                            badge.innerHTML = `<span class="dot"></span>${info.label}`;
+                        } else {
+                            badge.innerHTML = `<span class="dot"></span>${info.label}`;
+                        }
+                    }
+                    if (button) {
+                        if (c.status === "done" || c.status === "in_progress") {
+                            button.classList.add("secondary");
+                            button.style.pointerEvents = "none";
+                            button.style.opacity = "0.6";
+                            button.textContent = c.status === "done" ? "Déjà appelé" : "En cours";
+                        } else {
+                            button.classList.remove("secondary");
+                            button.style.pointerEvents = "auto";
+                            button.style.opacity = "1";
+                            button.textContent = "Lancer un appel";
+                        }
+                    }
+                    if (insp) {
+                        insp.textContent = c.inspector || "-";
+                    }
+                });
+            })
+            .catch(() => {});
+    }
+
+    setInterval(refreshStatuses, 6000);
+</script>
+{% endblock %}
+{% endblock %}

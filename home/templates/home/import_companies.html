@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Importer entreprises{% endblock %}
+{% block content %}
+<section class="panel fade-in">
+    <p class="pill">Import CSV</p>
+    <h2 style="margin:0 0 0.5rem;">Enregistrer des entreprises</h2>
+    <p class="muted">Chargez un CSV (séparateur virgule ou point-virgule). Vous pourrez prévisualiser avant d'écraser la base existante.</p>
+    <form method="post" enctype="multipart/form-data" style="margin-top:1rem; display:grid; gap:0.75rem; max-width:480px;">
+        {% csrf_token %}
+        {{ form.file }}
+        <button class="btn" type="submit" name="action" value="preview">Prévisualiser</button>
+    </form>
+</section>
+
+{% if preview_rows %}
+<section class="panel fade-in" style="margin-top:1rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+        <div>
+            <p class="pill">Prévisualisation</p>
+            <h3 style="margin:0;">{{ preview_rows|length }} lignes détectées</h3>
+        </div>
+        <form method="post" style="display:flex; gap:0.5rem; align-items:center;">
+            {% csrf_token %}
+            <input type="hidden" name="payload" value="{{ payload_json|escapejs }}">
+            <button class="btn" type="submit" name="action" value="confirm">Enregistrer et remplacer la base</button>
+        </form>
+    </div>
+    <div style="overflow-x:auto; margin-top:1rem;">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Nom</th>
+                    <th>Téléphone</th>
+                    <th>Produit</th>
+                    <th>Activité</th>
+                    <th>Localisation</th>
+                    <th>Forme</th>
+                    <th>NIU</th>
+                    <th>Score</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in preview_rows %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.phone }}</td>
+                        <td>{{ row.product }}</td>
+                        <td>{{ row.activity }}</td>
+                        <td>{{ row.location }}</td>
+                        <td>{{ row.legal_form }}</td>
+                        <td>{{ row.niu }}</td>
+                        <td>{{ row.validity_score }}</td>
+                        <td>
+                            <span class="badge {{ row.status|default:'default' }}">
+                                <span class="dot"></span>{{ row.status|default:'pending' }}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

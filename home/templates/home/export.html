@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Exporter{% endblock %}
+{% block content %}
+<section class="panel fade-in">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+        <div>
+            <p class="pill">Export des appels</p>
+            <h2 style="margin:0;">Tableau consolidé</h2>
+        </div>
+        <a class="btn secondary" href="{% url 'home' %}">Retour accueil</a>
+    </div>
+    <form method="post" style="display:flex; gap:0.5rem; align-items:center; margin-top:1rem;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="export">
+        <select name="format" class="input" style="max-width:220px;">
+            <option value="csv">Fichier CSV</option>
+            <option value="excel">Fichier Excel</option>
+        </select>
+        <button class="btn" type="submit">Exporter</button>
+    </form>
+    <div style="overflow-x:auto; margin-top:1rem;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Entreprise</th>
+                    <th>Téléphone</th>
+                    <th>Produit</th>
+                    <th>Activité</th>
+                    <th>Localisation</th>
+                    <th>Régime/Forme</th>
+                    <th>NIU</th>
+                    <th>Validité score</th>
+                    <th>Statut numéros</th>
+                    <th>Statut appel</th>
+                    <th>Présentation</th>
+                    <th>Questions libres</th>
+                    <th>Questions orientées</th>
+                    <th>Enquête</th>
+                    <th>Date-temps</th>
+                    <th>Enreg. vocal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td>{{ row.0 }}</td>
+                        <td>{{ row.1 }}</td>
+                        <td>{{ row.2 }}</td>
+                        <td>{{ row.3 }}</td>
+                        <td>{{ row.4 }}</td>
+                        <td>{{ row.5 }}</td>
+                        <td>{{ row.6 }}</td>
+                        <td>{{ row.7 }}</td>
+                        <td>{{ row.8 }}</td>
+                        <td>{{ row.9 }}</td>
+                        <td>{{ row.10 }}</td>
+                        <td>{{ row.11 }}</td>
+                        <td>{{ row.12 }}</td>
+                        <td>{{ row.13 }}</td>
+                        <td>{{ row.14 }}</td>
+                        <td>{{ row.15 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="16" class="muted">Aucun appel enregistré.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

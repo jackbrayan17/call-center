@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="{{ MEDIA_URL }}logo.jpg">
+    <title>Naumur | {% block title %}{% endblock %}</title>
+    <style>
+        :root {
+            --bg: #0b1021;
+            --panel: #0f172a;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #22d3ee;
+            --accent-2: #912af2;
+            --border: #1f2937;
+            --success: #22c55e;
+            --danger: #ef4444;
+            color-scheme: dark;
+        }
+        [data-theme="light"] {
+            --bg: #f6f7fb;
+            --panel: #ffffff;
+            --text: #0f172a;
+            --muted: #475569;
+            --accent: #2563eb;
+            --accent-2: #7c3aed;
+            --border: #d8e0f0;
+            --success: #16a34a;
+            --danger: #dc2626;
+            color-scheme: light;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: radial-gradient(circle at 20% 20%, rgba(34,211,238,0.08), transparent 25%),
+                        radial-gradient(circle at 80% 0%, rgba(168,85,247,0.08), transparent 25%),
+                        var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        a { color: inherit; }
+        .shell {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.25rem 1.75rem 3rem;
+        }
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+            gap: 1rem;
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(8px);
+            z-index: 10;
+            flex-wrap: wrap;
+        }
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.65rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+        .brand img {
+            width: 34px;
+            height: 34px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        .brand .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 0 12px rgba(34,211,238,0.8);
+        }
+        .nav-links {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .nav-links a {
+            padding: 0.55rem 0.85rem;
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--muted);
+            transition: all 160ms ease;
+            position: relative;
+        }
+        .nav-links a:hover, .nav-links a.is-active {
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            transform: translateY(-1px);
+        }
+        .nav-links a.is-active::after {
+            content: "";
+            position: absolute;
+            left: 12px;
+            right: 12px;
+            bottom: -8px;
+            height: 3px;
+            border-radius: 999px;
+            background: linear-gradient(120deg, var(--accent), var(--accent-2));
+        }
+        .panel {
+            background: rgba(15,23,42,0.8);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 1.75rem;
+            box-shadow: 0 20px 70px rgba(0,0,0,0.35);
+        }
+        [data-theme="light"] .panel {
+            background: #ffffff;
+            box-shadow: 0 18px 45px rgba(15,23,42,0.08);
+            border-color: rgba(209,213,219,0.9);
+            transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+        [data-theme="light"] .panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 22px 60px rgba(37, 99, 235, 0.14);
+        }
+        .grid {
+            display: grid;
+            gap: 1rem;
+        }
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.06);
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+        .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .stat .value {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 0.85rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            text-align: left;
+        }
+        th { color: var(--muted); font-weight: 600; }
+        tr:hover td {
+            background: rgba(255,255,255,0.03);
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            border: none;
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            background: linear-gradient(120deg, var(--accent), var(--accent-2));
+            color: #0b1021;
+            text-decoration: none;
+            box-shadow: 0 14px 40px rgba(34,211,238,0.28);
+            transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 18px 45px rgba(34,211,238,0.35); }
+        .btn.secondary { background: rgba(255,255,255,0.08); color: var(--text); box-shadow: none; }
+        .badge {
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            border: 1px solid transparent;
+            letter-spacing: -0.01em;
+        }
+        .badge .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 0 4px rgba(255,255,255,0.08);
+        }
+        .badge.pending { background: linear-gradient(120deg, rgba(34,211,238,0.14), rgba(14,165,233,0.08)); color: var(--accent); border-color: rgba(34,211,238,0.2); }
+        .badge.in_progress { background: linear-gradient(120deg, rgba(250,204,21,0.16), rgba(234,179,8,0.1)); color: #facc15; border-color: rgba(250,204,21,0.25); }
+        .badge.callback { background: linear-gradient(120deg, rgba(59,130,246,0.16), rgba(59,130,246,0.08)); color: #60a5fa; border-color: rgba(59,130,246,0.22); }
+        .badge.done { background: linear-gradient(120deg, rgba(34,197,94,0.16), rgba(16,185,129,0.08)); color: #22c55e; border-color: rgba(34,197,94,0.2); }
+        .badge.default { background: rgba(255,255,255,0.06); color: var(--muted); border-color: rgba(255,255,255,0.08); }
+        .input {
+            width: 100%;
+            background: rgba(255,255,255,0.04);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.75rem 0.9rem;
+            font-size: 1rem;
+        }
+        .muted { color: var(--muted); }
+        .hero-title {
+            font-size: clamp(2.2rem, 5vw, 3rem);
+            margin: 0 0 0.4rem;
+            letter-spacing: -0.03em;
+        }
+        .hero-sub {
+            margin: 0;
+            color: var(--muted);
+            max-width: 680px;
+        }
+        .glass {
+            background: linear-gradient(135deg, rgba(34,211,238,0.08), rgba(168,85,247,0.08));
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 1rem 1.25rem;
+        }
+        [data-theme="light"] .glass {
+            background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(124,58,237,0.06));
+            border-color: rgba(209,213,219,0.8);
+        }
+        .fade-in { animation: fadeIn 420ms ease forwards; opacity: 0; }
+        @keyframes fadeIn { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0; } }
+        @media (max-width: 640px) {
+            nav { flex-direction: column; align-items: flex-start; }
+            .shell { padding: 1rem 1.1rem 2.5rem; }
+            .panel { padding: 1.25rem; }
+            .nav-links { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); }
+        }
+        .nav-locator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.75rem;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.06);
+            color: var(--text);
+            font-weight: 700;
+            letter-spacing: -0.01em;
+        }
+        .nav-locator .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 0 0 4px rgba(255,255,255,0.05);
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <div class="shell">
+        <nav>
+            <div class="brand">
+                {% if MEDIA_URL %}
+                    <img src="{{ MEDIA_URL }}logo.jpg" alt="Logo">
+                {% endif %}
+                <!-- <span class="dot"></span>  -->
+                Naumur
+            </div>
+            <div class="nav-links">
+                <a href="{% url 'home' %}" class="{% if request.path == '/' %}is-active{% endif %}" {% if request.path == '/' %}aria-current="page"{% endif %}>Accueil</a>
+                <a href="{% url 'dashboard' %}" class="{% if '/dashboard' in request.path %}is-active{% endif %}" {% if '/dashboard' in request.path %}aria-current="page"{% endif %}>Dashboard</a>
+                <a href="{% url 'contacts' %}" class="{% if '/contacts' in request.path %}is-active{% endif %}" {% if '/contacts' in request.path %}aria-current="page"{% endif %}>Contacts</a>
+                <a href="{% url 'call_access' %}" class="{% if '/appels' in request.path %}is-active{% endif %}" {% if '/appels' in request.path %}aria-current="page"{% endif %}>Appels</a>
+            </div>
+            <div class="nav-locator" aria-label="Page active">
+                <span class="dot"></span>
+                {% if request.path == '/' %}
+                    Accueil
+                {% elif '/dashboard' in request.path %}
+                    Dashboard
+                {% elif '/contacts' in request.path %}
+                    Contacts
+                {% elif '/appels' in request.path %}
+                    Parcours d'appels
+                {% elif '/import-entreprises' in request.path %}
+                    Import CSV
+                {% elif '/export' in request.path %}
+                    Export
+                {% else %}
+                    Navigation
+                {% endif %}
+            </div>
+            <button id="theme-toggle" class="btn secondary" style="min-width:140px;">Thème clair</button>
+        </nav>
+        {% if messages %}
+            <div class="grid" style="margin-bottom: 1rem;">
+                {% for message in messages %}
+                    <div class="glass fade-in">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </div>
+    {% block scripts %}{% endblock %}
+    <script>
+        (function() {
+            const toggle = document.getElementById("theme-toggle");
+            const pref = localStorage.getItem("naumur-theme") || "dark";
+            const root = document.documentElement;
+            if (pref === "light") {
+                root.setAttribute("data-theme", "light");
+                if (toggle) toggle.textContent = "Thème sombre";
+            }
+            toggle?.addEventListener("click", () => {
+                const isLight = root.getAttribute("data-theme") === "light";
+                if (isLight) {
+                    root.removeAttribute("data-theme");
+                    localStorage.setItem("naumur-theme", "dark");
+                    toggle.textContent = "Thème clair";
+                } else {
+                    root.setAttribute("data-theme", "light");
+                    localStorage.setItem("naumur-theme", "light");
+                    toggle.textContent = "Thème sombre";
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

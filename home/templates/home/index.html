@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Accueil{% endblock %}
+{% block content %}
+<section class="panel fade-in">
+    <p class="pill">Naumur · Application d'appels</p>
+    <h1 class="hero-title">Pilotez vos appels en un coup d'œil.</h1>
+    <p class="hero-sub">
+        Dashboard, liste des contacts, et parcours d'appel sécurisé avec enregistrement. Responsive et animé pour aller vite.
+    </p>
+    <div style="display:flex; gap:0.75rem; margin-top:1.4rem; flex-wrap: wrap;">
+        <a class="btn" href="{% url 'dashboard' %}">Ouvrir le dashboard</a>
+        <a class="btn secondary" href="{% url 'call_access' %}">Accéder aux appels</a>
+        <a class="btn secondary" style="opacity:0.8;" href="{% url 'import_companies' %}">Importer CSV</a>
+        <a class="btn secondary" style="opacity:0.8;" href="{% url 'export_calls' %}">Exporter</a>
+    </div>
+</section>
+
+{% if user_cards %}
+<section class="panel fade-in" style="margin-top:1rem;">
+    <p class="pill">Histogramme des points </p>
+    <style>
+        .col-chart { display:flex; gap:1rem; align-items:flex-end; min-height:240px; padding:0.5rem 0; overflow-x:auto; justify-content:center; }
+        .col { flex: 0 0 110px; display:flex; flex-direction:column; align-items:center; gap:0.35rem; }
+        .col-bar-wrap { width:100%; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); border-radius:14px 14px 6px 6px; height:180px; display:flex; align-items:flex-end; overflow:hidden; box-shadow: inset 0 -8px 20px rgba(0,0,0,0.2); }
+        .col-bar { width:100%; background:linear-gradient(180deg,#22d3ee,#7c3aed); height:20%; border-radius:12px 12px 4px 4px; box-shadow: 0 -8px 18px rgba(34,211,238,0.35); animation: growY 520ms ease forwards; }
+        @keyframes growY { from { height: 0%; } to { height: var(--h); } }
+        .col-avatar { width:46px; height:46px; border-radius:15px; background:linear-gradient(135deg,#22d3ee,#7c3aed); display:grid; place-items:center; font-weight:800; color:#0b1021; box-shadow:0 10px 24px rgba(34,211,238,0.3); }
+        .col-name { text-align:center; font-weight:700; letter-spacing:-0.01em; }
+        .col-count { font-size:0.95rem; color: var(--muted); }
+        @media(max-width:640px){ .col { flex-basis: 90px; } .col-bar-wrap { height:160px; } }
+    </style>
+    <div class="col-chart" id="col-chart"></div>
+</section>
+<section class="panel fade-in" style="margin-top:1rem;">
+    <p class="pill">Statistiques des points #Ques meilleurs gange</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.85rem;" id="stats-cards"></div>
+</section>
+{{ user_cards|json_script:"user-stats-data" }}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function renderStats(data) {
+        const chart = document.getElementById("col-chart");
+        const cards = document.getElementById("stats-cards");
+        if (!chart || !cards) return;
+        chart.innerHTML = data.map(u => `
+            <div class="col">
+                <div class="col-bar-wrap">
+                    <div class="col-bar" style="--h: ${u.ratio}%; height: ${u.ratio}%"></div>
+                </div>
+                <div class="col-avatar">${u.initial}</div>
+                <div class="col-name">${u.username}</div>
+                <div class="col-count">${u.points} pts · ${u.total} appels</div>
+            </div>
+        `).join("");
+
+        cards.innerHTML = data.map(u => `
+            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:14px;padding:0.9rem;box-shadow:0 10px 30px rgba(0,0,0,0.25);">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:0.55rem;">
+                        <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#22d3ee,#7c3aed);display:grid;place-items:center;font-weight:800;color:#0b1021;">${u.initial}</div>
+                        <strong>${u.username}</strong>
+                    </div>
+                    <span class="pill" style="padding:0.35rem 0.6rem;">${u.points} pts</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin-top:0.75rem;">
+                    <div>
+                        <p class="muted" style="margin:0;">Complet</p>
+                        <strong>${u.complete}</strong>
+                    </div>
+                    <div>
+                        <p class="muted" style="margin:0;">Incomplet</p>
+                        <strong>${u.incomplete}</strong>
+                    </div>
+                    <div>
+                        <p class="muted" style="margin:0;">Total</p>
+                        <strong>${u.total}</strong>
+                    </div>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    const initial = JSON.parse(document.getElementById("user-stats-data")?.textContent || "[]");
+    renderStats(initial);
+
+    function refreshStats() {
+        fetch("{% url 'user_stats' %}")
+            .then((res) => res.json())
+            .then((data) => renderStats(data.users || []))
+            .catch(() => {});
+    }
+    setInterval(refreshStats, 6000);
+</script>
+{% endblock %}

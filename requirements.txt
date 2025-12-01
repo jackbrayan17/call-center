@@ -1,0 +1,11 @@
+Django
+django-allauth
+crispy-forms
+crispy-tailwind
+django-tailwind
+djangorestframework
+whitenoise
+environ
+psycopg2-binary
+pillow
+django-widget-tweaks

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<section class="grid grid-3 fade-in">
+    <div class="panel stat">
+        <span class="pill">Appels</span>
+        <div class="value">{{ calls_total }}</div>
+        <div class="muted">Total des enregistrements</div>
+    </div>
+    <div class="panel stat">
+        <span class="pill">Entreprises</span>
+        <div class="value">{{ total_companies }}</div>
+        <div class="muted">Contacts suivis</div>
+    </div>
+    <div class="panel stat">
+        <span class="pill">Décrochés</span>
+        <div class="value">{{ calls_answered }}</div>
+        <div class="muted">Appels avec réponse</div>
+    </div>
+</section>
+
+<section class="panel fade-in" style="margin-top: 1rem;">
+    <div class="grid grid-3">
+        <div>
+            <p class="muted">Statut contacts</p>
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <span class="badge pending">{{ pending }} en attente</span>
+                <span class="badge in_progress">{{ in_progress }} en cours</span>
+                <span class="badge done">{{ done }} terminés</span>
+            </div>
+        </div>
+        <div>
+            <p class="muted">Répartition appels</p>
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                {% for row in calls_by_status %}
+                    <span class="pill">{{ row.status_numero }} · {{ row.total }}</span>
+                {% empty %}
+                    <span class="pill">Aucun appel encore</span>
+                {% endfor %}
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:flex-end; gap:0.5rem; flex-wrap: wrap;">
+            <a class="btn" href="{% url 'call_access' %}">Lancer des appels</a>
+            <a class="btn secondary" href="{% url 'contacts' %}">Voir les contacts</a>
+        </div>
+    </div>
+    {% if request.user.is_authenticated %}
+    <div style="margin-top:1rem;" class="glass">
+        <p class="muted" style="margin:0;">Inspecteur</p>
+        <strong>{{ request.user.get_username }}</strong>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

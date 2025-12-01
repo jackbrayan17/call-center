@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Connexion{% endblock %}
+{% block content %}
+<section class="panel fade-in">
+    <p class="pill">Zone sécurisée</p>
+    <h2 style="margin:0 0 0.5rem;">Connexion opérateur</h2>
+    <p class="muted">Entrez uniquement le mot de passe associé à l'utilisateur configuré.</p>
+    <form method="post" style="margin-top:1rem; display:grid; gap:0.75rem; max-width:360px;">
+        {% csrf_token %}
+        <input class="input" type="password" name="password" placeholder="Mot de passe" required autocomplete="current-password" value="{{ password_value|default_if_none:'' }}">
+        <button class="btn" type="submit">Se connecter</button>
+    </form>
+</section>
+{% endblock %}
