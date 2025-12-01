@@ -1,11 +1,11 @@
-Django
+Django>=5.0
 django-allauth
-crispy-forms
+django-crispy-forms
 crispy-tailwind
 django-tailwind
 djangorestframework
 whitenoise
-environ
+django-environ
 psycopg2-binary
-pillow
+Pillow
 django-widget-tweaks
