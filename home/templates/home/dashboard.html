@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
+{% block head_extra %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
 {% block content %}
 <section class="grid grid-3 fade-in">
     <div class="panel stat">
-        <span class="pill">Appels</span>
+        <span class="pill">Appels réussis</span>
         <div class="value">{{ calls_total }}</div>
-        <div class="muted">Total des enregistrements</div>
+        <div class="muted">Acceptés / complétés</div>
     </div>
     <div class="panel stat">
         <span class="pill">Entreprises</span>
@@ -13,9 +16,9 @@
         <div class="muted">Contacts suivis</div>
     </div>
     <div class="panel stat">
-        <span class="pill">Décrochés</span>
+        <span class="pill">Réussis</span>
         <div class="value">{{ calls_answered }}</div>
-        <div class="muted">Appels avec réponse</div>
+        <div class="muted">Appels aboutis</div>
     </div>
 </section>
 
@@ -51,4 +54,144 @@
     </div>
     {% endif %}
 </section>
+<section class="panel fade-in" style="margin-top: 1rem;">
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+        <div>
+            <p class="muted">Répartition (filières des appels réussis)</p>
+            <canvas id="products-chart" height="220" aria-label="Répartition des entreprises par filière"></canvas>
+        </div>
+        <div>
+            <p class="muted">Appels réussis avec enregistrement</p>
+            <canvas id="recording-chart" height="220" aria-label="Part des appels enregistrés"></canvas>
+        </div>
+    </div>
+</section>
+<section class="panel fade-in" style="margin-top:1rem;">
+    <p class="muted">Statuts d'enquête par filière</p>
+    <canvas id="enquete-chart" height="320" aria-label="Statuts d'enquête par filière"></canvas>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+    const productData = {
+        labels: [
+            {% for row in product_counts %}
+                "{{ row.company__product|default:'Non renseigné' }}",
+            {% empty %}
+                "Aucune donnée"
+            {% endfor %}
+        ],
+        values: [
+            {% for row in product_counts %}
+                {{ row.total }},
+            {% empty %}
+                1
+            {% endfor %}
+        ],
+    };
+
+    const recordingData = {
+        labels: ["Avec audio", "Sans audio"],
+        values: [{{ calls_with_audio }}, {{ calls_without_audio }}],
+    };
+
+    const enqueteData = {
+        labels: [
+            {% for row in enquete_by_product %}
+                "{{ row.product|default:'Non renseigné' }}",
+            {% empty %}
+                "Aucune donnée"
+            {% endfor %}
+        ],
+        complet: [
+            {% for row in enquete_by_product %}
+                {{ row.Complet }},
+            {% empty %}
+                0
+            {% endfor %}
+        ],
+        partiel: [
+            {% for row in enquete_by_product %}
+                {{ row.Partiel }},
+            {% empty %}
+                0
+            {% endfor %}
+        ],
+        incomplet: [
+            {% for row in enquete_by_product %}
+                {{ row.Incomplet }},
+            {% empty %}
+                0
+            {% endfor %}
+        ],
+    };
+
+    function buildPie(ctx, labels, data, colors) {
+        if (!ctx) return;
+        new Chart(ctx, {
+            type: "doughnut",
+            data: {
+                labels,
+                datasets: [
+                    {
+                        data,
+                        backgroundColor: colors,
+                        borderColor: colors.map(() => "rgba(0,0,0,0)"),
+                    },
+                ],
+            },
+            options: {
+                plugins: {
+                    legend: { position: "bottom", labels: { color: getComputedStyle(document.documentElement).getPropertyValue("--text") || "#e2e8f0" } },
+                },
+                animation: { duration: 600 },
+                cutout: "55%",
+            },
+        });
+    }
+
+    const palette = ["#22d3ee", "#a855f7", "#f59e0b", "#10b981", "#3b82f6", "#f43f5e", "#8b5cf6", "#14b8a6"];
+
+    buildPie(
+        document.getElementById("products-chart"),
+        productData.labels,
+        productData.values,
+        productData.labels.map((_, idx) => palette[idx % palette.length])
+    );
+
+    buildPie(
+        document.getElementById("recording-chart"),
+        recordingData.labels,
+        recordingData.values,
+        ["#22d3ee", "#64748b"]
+    );
+
+    // Bar chart statuts d'enquête par filière
+    const enqueteCtx = document.getElementById("enquete-chart");
+    if (enqueteCtx) {
+        new Chart(enqueteCtx, {
+            type: "bar",
+            data: {
+                labels: enqueteData.labels,
+                datasets: [
+                    { label: "Complet", data: enqueteData.complet, backgroundColor: "#22c55e" },
+                    { label: "Partiel", data: enqueteData.partiel, backgroundColor: "#f59e0b" },
+                    { label: "Incomplet", data: enqueteData.incomplet, backgroundColor: "#ef4444" },
+                ],
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: "bottom", labels: { color: getComputedStyle(document.documentElement).getPropertyValue("--text") || "#e2e8f0" } },
+                },
+                scales: {
+                    x: { stacked: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue("--text") || "#e2e8f0" } },
+                    y: { stacked: true, ticks: { color: getComputedStyle(document.documentElement).getPropertyValue("--text") || "#e2e8f0" }, beginAtZero: true },
+                },
+            },
+        });
+    }
+</script>
 {% endblock %}

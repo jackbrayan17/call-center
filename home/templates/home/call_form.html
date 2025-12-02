@@ -147,6 +147,20 @@
             </div>
             <div class="spectrum" id="rec-spectrum"></div>
             <p class="muted" id="record-status" style="margin-top:0.5rem;">En attente de démarrage.</p>
+            <div class="glass" style="margin-top:0.8rem;">
+                <div style="display:flex; justify-content:space-between; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                    <div>
+                        <p class="muted" style="margin:0;">Transcription</p>
+                        <small class="muted" id="transcribe-status">En attente d'un enregistrement.</small>
+                    </div>
+                    <div class="control-row" style="justify-content:flex-end;">
+                        <button class="btn secondary" type="button" id="transcribe-btn">Transcrire</button>
+                        <button class="btn secondary" type="button" id="copy-transcript" disabled>Copier</button>
+                        <button class="btn secondary" type="button" id="download-transcript" disabled>Télécharger</button>
+                    </div>
+                </div>
+                <textarea id="transcript-output" class="input" rows="6" readonly style="margin-top:0.65rem;" placeholder="Le texte transcrit apparaîtra ici."></textarea>
+            </div>
         </div>
     </div>
 
@@ -252,6 +266,7 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/whisper-web@latest/dist/whisper-web.min.js"></script>
 <script>
     const statusNumero = document.getElementById("id_status_numero");
     const callStatus = document.getElementById("id_call_status");
@@ -279,6 +294,11 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
     const skipWithoutRec = document.getElementById("id_skip_without_rec");
     const resumeBtn = document.getElementById("resume-mic");
     const pauseBtn = document.getElementById("pause-mic");
+    const transcribeBtn = document.getElementById("transcribe-btn");
+    const transcriptOutput = document.getElementById("transcript-output");
+    const copyTranscript = document.getElementById("copy-transcript");
+    const downloadTranscript = document.getElementById("download-transcript");
+    const transcribeStatus = document.getElementById("transcribe-status");
 
     function setTimestamp() {
         const now = new Date();
@@ -357,6 +377,9 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
     let spectrumId = null;
     let selectedMime = "";
     let formSubmitted = false;
+    let lastRecordingBlob = null;
+    let liveTranscription = false;
+    let liveLoopRunning = false;
     const companyId = {{ company.id }};
     const csrftoken = document.querySelector('input[name=csrfmiddlewaretoken]').value;
 
@@ -396,6 +419,7 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
             };
             mediaRecorder.onstop = async () => {
                 const blob = new Blob(chunks, { type: "audio/webm" });
+                lastRecordingBlob = blob;
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     recordingData.value = reader.result;
@@ -414,9 +438,11 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
             skipWithoutRec.value = "";
             recordStatus.textContent = "Enregistrement en cours...";
             blockStatuses(false);
-            pauseBtn.style.display = "inline-flex";
+            toggleButtons("recording");
             recBar.style.width = "100%";
             recBar.style.animation = "recFlow 1.5s linear infinite";
+            liveTranscription = true;
+            startLiveLoop();
 
             // spectrum visual
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -437,14 +463,14 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
 
     document.getElementById("close-mic").addEventListener("click", () => {
         micModal.style.display = "none";
+        toggleButtons("recording");
     });
 
     pauseBtn.addEventListener("click", () => {
         if (mediaRecorder && mediaRecorder.state === "recording") {
             mediaRecorder.pause();
             recordStatus.textContent = "Enregistrement en pause.";
-            pauseBtn.style.display = "none";
-            resumeBtn.style.display = "inline-flex";
+            toggleButtons("paused");
         }
     });
 
@@ -452,8 +478,7 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
         if (mediaRecorder && mediaRecorder.state === "paused") {
             mediaRecorder.resume();
             recordStatus.textContent = "Enregistrement en cours...";
-            pauseBtn.style.display = "inline-flex";
-            resumeBtn.style.display = "none";
+            toggleButtons("recording");
             recBar.style.animationPlayState = "running";
         }
     });
@@ -467,6 +492,8 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
         recBar.style.width = "0%";
         recBar.style.animation = "none";
         stopSpectrum();
+        lastRecordingBlob = null;
+        liveTranscription = false;
     });
 
     document.getElementById("call-form").addEventListener("submit", async (e) => {
@@ -488,6 +515,22 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
             e.target.submit();
         }
     });
+
+    function toggleButtons(state) {
+        if (state === "recording") {
+            document.getElementById("start-mic").style.display = "none";
+            pauseBtn.style.display = "inline-flex";
+            resumeBtn.style.display = "none";
+        } else if (state === "paused") {
+            document.getElementById("start-mic").style.display = "none";
+            pauseBtn.style.display = "none";
+            resumeBtn.style.display = "inline-flex";
+        } else {
+            document.getElementById("start-mic").style.display = "inline-flex";
+            pauseBtn.style.display = "none";
+            resumeBtn.style.display = "none";
+        }
+    }
 
     function resetStatus() {
         if (formSubmitted) return;
@@ -527,6 +570,104 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
             audioCtx = null;
             analyser = null;
         }
+    }
+
+    // Transcription Whisper Web (expérimental)
+    async function ensureBlob() {
+        if (lastRecordingBlob) return lastRecordingBlob;
+        const dataUrl = recordingData.value;
+        if (!dataUrl) return null;
+        const parts = dataUrl.split(",");
+        if (parts.length < 2) return null;
+        const byteString = atob(parts[1]);
+        const mimeString = parts[0].split(":")[1].split(";")[0] || "audio/webm";
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+        return new Blob([ab], { type: mimeString });
+    }
+
+    async function loadWhisper() {
+        if (!window.whisperWeb) {
+            transcribeStatus.textContent = "Whisper Web non chargé (réseau requis).";
+            throw new Error("whisperWeb missing");
+        }
+        if (window._whisperModel) return window._whisperModel;
+        transcribeStatus.textContent = "Chargement du modèle (tiny)...";
+        const model = await window.whisperWeb.loadModel({ model: "tiny" });
+        window._whisperModel = model;
+        transcribeStatus.textContent = "Modèle chargé. Prêt.";
+        return model;
+    }
+
+    async function runTranscription() {
+        await transcribeBlob();
+    }
+
+    transcribeBtn?.addEventListener("click", runTranscription);
+    copyTranscript?.addEventListener("click", async () => {
+        if (!transcriptOutput.value) return;
+        try {
+            await navigator.clipboard.writeText(transcriptOutput.value);
+            transcribeStatus.textContent = "Transcription copiée.";
+        } catch {
+            transcribeStatus.textContent = "Impossible de copier.";
+        }
+    });
+    downloadTranscript?.addEventListener("click", () => {
+        if (!transcriptOutput.value) return;
+        const blob = new Blob([transcriptOutput.value], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `transcription_call_${companyId}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+    async function transcribeBlob(isLive = false) {
+        const blob = await ensureBlob();
+        if (!blob) {
+            if (!isLive) transcribeStatus.textContent = "Aucun enregistrement à transcrire.";
+            return;
+        }
+        if (!isLive) {
+            transcribeBtn.disabled = true;
+            transcribeStatus.textContent = "Transcription en cours...";
+        } else {
+            transcribeStatus.textContent = "Transcription en direct...";
+        }
+        try {
+            const model = await loadWhisper();
+            const arrayBuffer = await blob.arrayBuffer();
+            const result = await model.transcribe(new Uint8Array(arrayBuffer));
+            const text = result?.text || "";
+            if (text) {
+                transcriptOutput.value = text;
+                copyTranscript.disabled = false;
+                downloadTranscript.disabled = false;
+                transcribeStatus.textContent = isLive ? "Transcription en direct (mise à jour)..." : "Transcription terminée.";
+            } else if (!isLive) {
+                transcribeStatus.textContent = "Aucun texte détecté.";
+            }
+        } catch (err) {
+            console.error(err);
+            if (!isLive) transcribeStatus.textContent = "Échec de la transcription.";
+        } finally {
+            if (!isLive) transcribeBtn.disabled = false;
+        }
+    }
+
+    async function startLiveLoop() {
+        if (liveLoopRunning) return;
+        liveLoopRunning = true;
+        while (liveTranscription && mediaRecorder && mediaRecorder.state !== "inactive") {
+            await transcribeBlob(true);
+            await new Promise((res) => setTimeout(res, 5000));
+        }
+        liveLoopRunning = false;
     }
 </script>
 {% endblock %}

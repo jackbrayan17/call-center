@@ -14,6 +14,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from .forms import CallRecordForm, ImportCompaniesForm
@@ -97,17 +98,38 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     total_companies = Company.objects.count()
     status_counts = Company.objects.values("status").annotate(total=Count("id"))
     status_map = {row["status"]: row["total"] for row in status_counts}
-    calls_by_status = CallRecord.objects.values("status_numero").annotate(total=Count("id"))
+    success_calls = CallRecord.objects.filter(call_status="accepted")
+    calls_by_status = success_calls.values("status_numero").annotate(total=Count("id"))
     answered = sum(row["total"] for row in calls_by_status if row["status_numero"] == "answered")
+    product_counts = (
+        success_calls.values("company__product")
+        .annotate(total=Count("id"))
+        .order_by("company__product")
+    )
+    calls_with_audio = success_calls.filter(recordings__isnull=False).distinct().count()
+    calls_without_audio = success_calls.filter(recordings__isnull=True).count()
+    enquete_map = {}
+    for call in success_calls.select_related("company"):
+        product = call.company.product or "Non renseigné"
+        status = call.enquete_status()
+        bucket = enquete_map.setdefault(product, {"Complet": 0, "Partiel": 0, "Incomplet": 0})
+        bucket[status] = bucket.get(status, 0) + 1
+    enquete_by_product = [
+        {"product": prod, **stats} for prod, stats in sorted(enquete_map.items(), key=lambda x: x[0].lower())
+    ]
 
     context = {
         "total_companies": total_companies,
         "pending": status_map.get("pending", 0),
         "in_progress": status_map.get("in_progress", 0),
         "done": status_map.get("done", 0),
-        "calls_total": CallRecord.objects.count(),
+        "calls_total": success_calls.count(),
         "calls_answered": answered,
         "calls_by_status": calls_by_status,
+        "product_counts": product_counts,
+        "calls_with_audio": calls_with_audio,
+        "calls_without_audio": calls_without_audio,
+        "enquete_by_product": enquete_by_product,
     }
     return render(request, "home/dashboard.html", context)
 
@@ -326,7 +348,9 @@ def call_form(request: HttpRequest, company_id: int) -> HttpResponse:
                     ext = "webm"
                     if "mp4" in mime:
                         ext = "mp4"
-                    audio_bytes = ContentFile(base64.b64decode(data), name=f"call_{record.id}.{ext}")
+                    company_slug = slugify(company.name) or "entreprise"
+                    date_str = timezone.now().strftime("%Y%m%d")
+                    audio_bytes = ContentFile(base64.b64decode(data), name=f"{company_slug}_{date_str}.{ext}")
                     from .models import Recording
 
                     Recording.objects.create(call=record, file=audio_bytes, mime_type=mime, duration_seconds=0)
