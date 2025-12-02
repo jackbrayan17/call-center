@@ -55,6 +55,7 @@ class CallRecord(models.Model):
     recording_stopped_at = models.DateTimeField(null=True, blank=True)
     recording_path = models.CharField(max_length=255, blank=True)
     user = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="call_records")
+    questionnaire_data = models.JSONField(default=dict, blank=True)
 
     def __str__(self) -> str:
         return f"Call {self.company.name} - {self.get_status_numero_display()}"
@@ -84,3 +85,43 @@ class Recording(models.Model):
 
     def __str__(self) -> str:
         return f"Recording for {self.call}"
+
+
+class AuditLog(models.Model):
+    user = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="audit_logs")
+    session_key = models.CharField(max_length=64, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    method = models.CharField(max_length=8)
+    path = models.TextField()
+    status_code = models.PositiveSmallIntegerField()
+    user_agent = models.TextField(blank=True)
+    duration_ms = models.PositiveIntegerField(default=0)
+    payload_summary = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["created_at"]), models.Index(fields=["path"])]
+
+    def __str__(self) -> str:
+        user_display = self.user.get_username() if self.user else "Anon"
+        return f"{self.method} {self.path} ({self.status_code}) - {user_display}"
+
+
+class SessionSnapshot(models.Model):
+    user = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="session_snapshots")
+    session_key = models.CharField(max_length=64, unique=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    login_at = models.DateTimeField()
+    last_activity = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-last_activity"]
+        indexes = [models.Index(fields=["last_activity"]), models.Index(fields=["session_key"])]
+
+    def __str__(self) -> str:
+        user_display = self.user.get_username() if self.user else "Anon"
+        return f"Session {self.session_key} ({user_display})"

@@ -70,6 +70,14 @@
         transition: height 90ms ease;
         box-shadow: 0 4px 12px rgba(34,211,238,0.25);
     }
+    .q-section { margin-top: 1rem; padding: 1rem; border-radius: 14px; border: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+    .q-title { display:flex; align-items:center; gap:0.5rem; margin:0 0 0.5rem; font-size:1rem; }
+    .q-grid { display:grid; gap:0.75rem; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); }
+    .pill-label { display:inline-flex; gap:0.4rem; align-items:center; padding:0.2rem 0.65rem; border-radius:999px; background:rgba(255,255,255,0.06); color:var(--muted); font-size:0.9rem; }
+    .q-block { border:1px dashed var(--border); border-radius:12px; padding:0.75rem; background:rgba(255,255,255,0.02); }
+    .q-sub { margin:0.2rem 0; color:var(--muted); }
+    .q-columns { display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+    .muted-note { font-size:0.9rem; color:var(--muted); }
 </style>
 {% endblock %}
 {% block content %}
@@ -171,6 +179,7 @@
         {{ form.recording_started }}
         {{ form.skip_without_rec }}
         {{ form.recording_mime }}
+        {{ form.questionnaire_data }}
         <div class="grid" style="gap:1rem; grid-template-columns:repeat(auto-fit, minmax(260px,1fr));">
             <div>
                 <label class="muted">Statut numéros</label>
@@ -221,45 +230,367 @@
     </div>
 </div>
 <div class="mic-overlay" id="questionnaire-modal">
-    <div class="mic-modal" style="max-width:720px; text-align:left;">
-        <h3 style="margin-top:0;">Questionnaire  </h3>
-        <span>{{ company.name }}</span>
-        <div class="muted" style="max-height:55vh; overflow-y:auto; white-space:pre-line;">
-<h3>⛔🛑 N'oubliez pas d'activer l'enregistrement ‼️</h3>
+    <div class="mic-modal" style="max-width:960px; text-align:left;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.75rem; flex-wrap:wrap;">
+            <div>
+                <p class="muted" style="margin:0;">Questionnaire complet</p>
+                <h3 style="margin:0;">{{ company.name }}</h3>
+            </div>
+            <div class="control-row" style="justify-content:flex-end;">
+                <span id="questionnaire-status" class="muted"></span>
+                <button class="btn secondary" type="button" id="save-questionnaire">Enregistrer</button>
+                <button class="btn" type="button" id="close-questionnaire">Fermer</button>
+            </div>
+        </div>
+        <div class="muted" style="max-height:65vh; overflow-y:auto; padding-right:0.5rem;">
 
-Bonjour Monsieur, nous sommes le cabinet Naumur mandaté par l’APME afin de réaliser un document diagnostic. Notre mission consiste à collecter les informations relatives aux difficultés que rencontrent les PME pour accéder aux différents marchés.  
+            <div class="q-section">
+                <div class="q-title"><span class="pill-label">Questionnaire 1</span><strong>Introduction</strong></div>
+                <div class="q-grid">
+                    <div class="q-block">
+                        <p class="q-sub">Est-ce le bon interlocuteur ?</p>
+                        <label><input type="radio" name="intro_correct_name" value="yes"> Oui, c'est bien nous</label><br>
+                        <label><input type="radio" name="intro_correct_name" value="no"> Non</label>
+                        <input class="input" type="text" id="intro_correct_name_text" placeholder="Precisez le bon nom">
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Nom et politesse</p>
+                        <input class="input" type="text" id="intro_contact_name" placeholder="Nom de la personne (optionnel)">
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Disponibilite</p>
+                        <label><input type="radio" name="intro_available" value="now"> Disponible maintenant</label><br>
+                        <label><input type="radio" name="intro_available" value="later"> Rappel plus tard</label>
+                        <input class="input" type="text" id="intro_callback_time" placeholder="Heure de rappel">
+                        <label style="margin-top:0.4rem; display:block;"><input type="radio" name="intro_available" value="no"> Ne souhaite pas repondre</label>
+                    </div>
+                </div>
+            </div>
 
-Notre démarche vise à avoir votre point de vue en tant qu’expert sur ces problématiques. 
+            <div class="q-section">
+                <div class="q-title"><span class="pill-label">Questionnaire 2</span><strong>Presentation</strong></div>
+                <div class="q-grid">
+                    <div class="q-block">
+                        <p class="q-sub">Produits (choix multiples)</p>
+                        <div class="q-columns">
+                            <label><input type="checkbox" name="prod_items" value="manioc"> Manioc / gari / baton</label>
+                            <label><input type="checkbox" name="prod_items" value="plantain"> Plantain / chips</label>
+                            <label><input type="checkbox" name="prod_items" value="fruits_legumes"> Fruits / legumes</label>
+                            <label><input type="checkbox" name="prod_items" value="poisson"> Poisson frais / fume</label>
+                            <label><input type="checkbox" name="prod_items" value="volaille"> Volaille</label>
+                            <label><input type="checkbox" name="prod_items" value="lait"> Lait / fromage / yaourt</label>
+                            <label><input type="checkbox" name="prod_items" value="huile_palme"> Huile de palme</label>
+                            <label><input type="checkbox" name="prod_items" value="miel"> Miel</label>
+                            <label><input type="checkbox" name="prod_items" value="cacao_cafe"> Cacao / cafe</label>
+                            <label><input type="checkbox" name="prod_items" value="autre"> Autre</label>
+                        </div>
+                        <input class="input" type="text" id="prod_other" placeholder="Precisez si autre">
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Anciennete</p>
+                        <input class="input" type="text" id="years_activity" placeholder="Ex : 3 ans, moins d'un an">
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Effectif total</p>
+                        <input class="input" type="text" id="workers_total" placeholder="Ex : 5 personnes">
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Localisation</p>
+                        <input class="input" type="text" id="loc_village" placeholder="Village / Quartier">
+                        <input class="input" type="text" id="loc_city" placeholder="Ville la plus proche" style="margin-top:0.35rem;">
+                        <input class="input" type="text" id="loc_region" placeholder="Region" style="margin-top:0.35rem;">
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Volume moyen</p>
+                        <label><input type="radio" name="volume_unit" value="day"> Par jour</label>
+                        <label><input type="radio" name="volume_unit" value="week" style="margin-left:0.75rem;"> Par semaine</label>
+                        <label><input type="radio" name="volume_unit" value="month" style="margin-left:0.75rem;"> Par mois</label>
+                        <div class="q-columns" style="margin-top:0.35rem;">
+                            <input class="input" type="text" id="volume_value" placeholder="Quantite">
+                            <select class="input" id="volume_measure">
+                                <option value="">Unite</option>
+                                <option value="kg">kg</option>
+                                <option value="litres">litres</option>
+                                <option value="unites">unites</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-A cet effet, nous avons identifié 8 niveaux de marchés que sont : 
+            <div class="q-section">
+                <div class="q-title"><span class="pill-label">Questionnaire 3</span><strong>Questions libres</strong></div>
+                <div class="q-grid">
+                    <div class="q-block">
+                        <p class="q-sub">Marche local</p>
+                        <label><input type="radio" name="mlocal_present" value="yes"> Deja present</label><br>
+                        <label><input type="radio" name="mlocal_present" value="no"> Pas encore present</label>
+                        <textarea class="input" rows="2" id="mlocal_success" placeholder="Si oui : comment avez-vous reussi ?"></textarea>
+                        <textarea class="input" rows="2" id="mlocal_blockers" placeholder="Si non : principaux freins ?"></textarea>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Grossistes / supermarches / hotels</p>
+                        <label><input type="radio" name="grossistes_present" value="yes"> Deja present</label><br>
+                        <label><input type="radio" name="grossistes_present" value="no"> Pas encore present</label>
+                        <textarea class="input" rows="2" id="grossistes_success" placeholder="Si oui : comment avez-vous reussi ?"></textarea>
+                        <textarea class="input" rows="2" id="grossistes_blockers" placeholder="Si non : principaux freins ?"></textarea>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Marche de l Etat</p>
+                        <label><input type="radio" name="etat_present" value="yes"> Deja present</label><br>
+                        <label><input type="radio" name="etat_present" value="no"> Pas encore present</label>
+                        <textarea class="input" rows="2" id="etat_success" placeholder="Si oui : comment avez-vous reussi ?"></textarea>
+                        <textarea class="input" rows="2" id="etat_blockers" placeholder="Si non : principaux freins ?"></textarea>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Marche numerique</p>
+                        <label><input type="radio" name="numerique_present" value="yes"> Deja present</label><br>
+                        <label><input type="radio" name="numerique_present" value="no"> Pas encore present</label>
+                        <textarea class="input" rows="2" id="numerique_success" placeholder="Si oui : comment avez-vous reussi ?"></textarea>
+                        <textarea class="input" rows="2" id="numerique_blockers" placeholder="Si non : principaux freins ?"></textarea>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Export sous-region</p>
+                        <label><input type="radio" name="export_reg_present" value="yes"> Deja present</label><br>
+                        <label><input type="radio" name="export_reg_present" value="no"> Pas encore present</label>
+                        <textarea class="input" rows="2" id="export_reg_success" placeholder="Si oui : comment avez-vous reussi ?"></textarea>
+                        <textarea class="input" rows="2" id="export_reg_blockers" placeholder="Si non : principaux freins ?"></textarea>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Export international</p>
+                        <label><input type="radio" name="export_int_present" value="yes"> Deja present</label><br>
+                        <label><input type="radio" name="export_int_present" value="no"> Pas encore present</label>
+                        <textarea class="input" rows="2" id="export_int_success" placeholder="Si oui : comment avez-vous reussi ?"></textarea>
+                        <textarea class="input" rows="2" id="export_int_blockers" placeholder="Si non : principaux freins ?"></textarea>
+                    </div>
+                </div>
+            </div>
 
-Marché de proximité (ultra-local) est qui regroupe les ventes dans le cercle familial, de voisinage ou dans l’espace domestique. 
+            <div class="q-section">
+                <div class="q-title"><span class="pill-label">Questionnaire 4</span><strong>Questions orientees</strong></div>
+                <p class="muted-note">Si non interesse par de nouveaux marches, ne pas remplir les blocs ci-dessous.</p>
+                <div class="q-grid">
+                    <div class="q-block">
+                        <p class="q-sub">Interet pour d'autres marches</p>
+                        <label><input type="radio" name="oriente_interest" value="yes"> Oui</label><br>
+                        <label><input type="radio" name="oriente_interest" value="no"> Non (fin du questionnaire)</label>
+                    </div>
+                </div>
+                <div class="q-grid">
+                    <div class="q-block">
+                        <p class="q-sub"><strong>1. Marche local</strong></p>
+                        <label class="muted">Vendre plus au village / petite ville</label>
+                        <div>
+                            <label><input type="checkbox" name="local_sell_more" value="emplacement"> Je ne sais pas ou m’installer</label><br>
+                            <label><input type="checkbox" name="local_sell_more" value="regles"> Jours du marche / regles / prix</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Grande ville proche</label>
+                        <div>
+                            <label><input type="checkbox" name="local_city_barriers" value="stockage"> Pas d’equipements pour stocker</label><br>
+                            <label><input type="checkbox" name="local_city_barriers" value="emballages"> Pas de bons emballages</label><br>
+                            <label><input type="checkbox" name="local_city_barriers" value="froid"> Pas de conservation sur la route</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Transport</label>
+                        <div>
+                            <label><input type="checkbox" name="local_transport" value="moyen"> Pas de moyen de transport</label><br>
+                            <label><input type="checkbox" name="local_transport" value="cout"> Transport trop cher</label><br>
+                            <label><input type="checkbox" name="local_transport" value="quantite"> Pas assez de quantites regulieres</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Manque d'argent</label>
+                        <div>
+                            <label><input type="checkbox" name="local_money" value="petit_materiel"> Petit materiel</label><br>
+                            <label><input type="checkbox" name="local_money" value="organisation"> Mieux s’organiser</label><br>
+                            <label><input type="checkbox" name="local_money" value="produire_plus"> Produire plus</label>
+                        </div>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub"><strong>2. Grossistes / supermarches / hotels</strong></p>
+                        <label class="muted">Je ne connais pas bien</label>
+                        <div>
+                            <label><input type="checkbox" name="wholesale_knowledge" value="qui"> Qui sont les grossistes</label><br>
+                            <label><input type="checkbox" name="wholesale_knowledge" value="conditions"> Leurs conditions</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Equipements manquants</label>
+                        <div>
+                            <label><input type="checkbox" name="wholesale_equipment" value="stockage"> Bon stockage</label><br>
+                            <label><input type="checkbox" name="wholesale_equipment" value="emballage"> Bons emballages / etiquettes</label><br>
+                            <label><input type="checkbox" name="wholesale_equipment" value="froid"> Chaine du froid</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Transport</label>
+                        <div>
+                            <label><input type="checkbox" name="wholesale_transport" value="moyen"> Pas de moyen regulier</label><br>
+                            <label><input type="checkbox" name="wholesale_transport" value="cout"> Transport trop cher</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Formations</label>
+                        <div>
+                            <label><input type="checkbox" name="wholesale_training" value="normes"> Normes qualite / hygiene</label><br>
+                            <label><input type="checkbox" name="wholesale_training" value="papiers"> Papiers et demarches</label><br>
+                            <label><input type="checkbox" name="wholesale_training" value="marketing"> Marketing / negociation</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Financement</label>
+                        <div>
+                            <label><input type="checkbox" name="wholesale_money" value="equipements"> Equipements pro</label><br>
+                            <label><input type="checkbox" name="wholesale_money" value="formations"> Payer les formations</label><br>
+                            <label><input type="checkbox" name="wholesale_money" value="developper"> Developper l’activite</label><br>
+                            <label><input type="checkbox" name="wholesale_money" value="prefinancer"> Prefinancer une commande</label>
+                        </div>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub"><strong>3. Marche de l'Etat</strong></p>
+                        <label class="muted">Je ne connais pas bien</label>
+                        <div>
+                            <label><input type="checkbox" name="state_knowledge" value="besoins"> Besoins / appels d’offres</label><br>
+                            <label><input type="checkbox" name="state_knowledge" value="procedures"> Fonctionnement des commandes publiques</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Equipements</label>
+                        <div>
+                            <label><input type="checkbox" name="state_equipment" value="stockage"> Stockage propre</label><br>
+                            <label><input type="checkbox" name="state_equipment" value="emballages"> Emballages scelles</label><br>
+                            <label><input type="checkbox" name="state_equipment" value="froid"> Conservation (froid)</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Transport</label>
+                        <div>
+                            <label><input type="checkbox" name="state_transport" value="moyen"> Pas de moyen fiable</label><br>
+                            <label><input type="checkbox" name="state_transport" value="cout"> Transport trop cher</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Formations</label>
+                        <div>
+                            <label><input type="checkbox" name="state_training" value="normes"> Normes / regles</label><br>
+                            <label><input type="checkbox" name="state_training" value="appels_offres"> Repondre aux appels d’offres</label><br>
+                            <label><input type="checkbox" name="state_training" value="dossier"> Presenter un dossier</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Financement</label>
+                        <div>
+                            <label><input type="checkbox" name="state_money" value="equipements"> Equipements + formations</label><br>
+                            <label><input type="checkbox" name="state_money" value="apprendre_en_ligne"> Apprendre appels d’offres en ligne</label><br>
+                            <label><input type="checkbox" name="state_money" value="administratif"> Demarches administratives</label><br>
+                            <label><input type="checkbox" name="state_money" value="developper"> Developper l’activite</label><br>
+                            <label><input type="checkbox" name="state_money" value="prefinancer"> Avancer l’argent pour grosse commande</label>
+                        </div>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub"><strong>4. Marche numerique</strong></p>
+                        <label class="muted">Je ne connais pas bien</label>
+                        <div>
+                            <label><input type="checkbox" name="digital_knowledge" value="opportunites"> Opportunites en ligne</label><br>
+                            <label><input type="checkbox" name="digital_knowledge" value="fonctionnement"> Fonctionnement vente en ligne</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Equipements</label>
+                        <div>
+                            <label><input type="checkbox" name="digital_equipment" value="stockage"> Stockage propre</label><br>
+                            <label><input type="checkbox" name="digital_equipment" value="emballage"> Bons emballages colis</label><br>
+                            <label><input type="checkbox" name="digital_equipment" value="conservation"> Conservation produits sensibles</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Livraison</label>
+                        <div>
+                            <label><input type="checkbox" name="digital_delivery" value="livreur"> Pas de livreur fiable</label><br>
+                            <label><input type="checkbox" name="digital_delivery" value="cout"> Frais de livraison chers</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Formations</label>
+                        <div>
+                            <label><input type="checkbox" name="digital_training" value="qualite"> Bases qualite / hygiene / photos</label><br>
+                            <label><input type="checkbox" name="digital_training" value="competences"> Competences numeriques</label><br>
+                            <label><input type="checkbox" name="digital_training" value="marketing"> Marketing digital</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Financement</label>
+                        <div>
+                            <label><input type="checkbox" name="digital_money" value="telephone"> Telephone + internet</label><br>
+                            <label><input type="checkbox" name="digital_money" value="emballages"> Bons emballages / materiel photo</label><br>
+                            <label><input type="checkbox" name="digital_money" value="formations"> Formations</label><br>
+                            <label><input type="checkbox" name="digital_money" value="publicite"> Publicite payante</label><br>
+                            <label><input type="checkbox" name="digital_money" value="developper"> Developper l’activite en ligne</label>
+                        </div>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub"><strong>5. Export sous-region</strong></p>
+                        <label class="muted">Je ne connais pas bien</label>
+                        <div>
+                            <label><input type="checkbox" name="export_reg_knowledge" value="grossistes"> Grossistes / transitaires</label><br>
+                            <label><input type="checkbox" name="export_reg_knowledge" value="procedures"> Procedures d’export simples</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Equipements</label>
+                        <div>
+                            <label><input type="checkbox" name="export_reg_equipment" value="stockage"> Bon stockage</label><br>
+                            <label><input type="checkbox" name="export_reg_equipment" value="emballage"> Emballages solides</label><br>
+                            <label><input type="checkbox" name="export_reg_equipment" value="conservation"> Conservation pendant voyage</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Transport</label>
+                        <div>
+                            <label><input type="checkbox" name="export_reg_transport" value="moyen"> Pas de moyen adapte</label><br>
+                            <label><input type="checkbox" name="export_reg_transport" value="cout"> Cout transport trop eleve</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Formations</label>
+                        <div>
+                            <label><input type="checkbox" name="export_reg_training" value="regles"> Regles de base export sous-region</label><br>
+                            <label><input type="checkbox" name="export_reg_training" value="papiers"> Papiers / douane</label><br>
+                            <label><input type="checkbox" name="export_reg_training" value="presentation"> Presentation produits</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Financement</label>
+                        <div>
+                            <label><input type="checkbox" name="export_reg_money" value="equipements"> Equipements</label><br>
+                            <label><input type="checkbox" name="export_reg_money" value="formations"> Formations</label><br>
+                            <label><input type="checkbox" name="export_reg_money" value="douane"> Procedures douanieres</label><br>
+                            <label><input type="checkbox" name="export_reg_money" value="niveau"> Mettre l’activite au niveau</label><br>
+                            <label><input type="checkbox" name="export_reg_money" value="prefinancer"> Prefinancer commande</label>
+                        </div>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub"><strong>6. Export international</strong></p>
+                        <label class="muted">Je ne connais pas bien</label>
+                        <div>
+                            <label><input type="checkbox" name="export_int_knowledge" value="acheteurs"> Acheteurs / transitaires internationaux</label><br>
+                            <label><input type="checkbox" name="export_int_knowledge" value="procedures"> Procedures d’export vers pays developpes</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Equipements</label>
+                        <div>
+                            <label><input type="checkbox" name="export_int_equipment" value="stockage"> Stockage aux normes internationales</label><br>
+                            <label><input type="checkbox" name="export_int_equipment" value="emballage"> Emballages renforces</label><br>
+                            <label><input type="checkbox" name="export_int_equipment" value="froid"> Chaine du froid pro</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Transport & logistique</label>
+                        <div>
+                            <label><input type="checkbox" name="export_int_transport" value="solution"> Pas de solution adaptee</label><br>
+                            <label><input type="checkbox" name="export_int_transport" value="cout"> Couts logistiques eleves</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Formations</label>
+                        <div>
+                            <label><input type="checkbox" name="export_int_training" value="normes"> Normes internationales</label><br>
+                            <label><input type="checkbox" name="export_int_training" value="papiers"> Papiers / certificats</label><br>
+                            <label><input type="checkbox" name="export_int_training" value="marketing"> Marketing export</label>
+                        </div>
+                        <label class="muted" style="display:block; margin-top:0.35rem;">Financement</label>
+                        <div>
+                            <label><input type="checkbox" name="export_int_money" value="equipements"> Equipements / machines</label><br>
+                            <label><input type="checkbox" name="export_int_money" value="formations"> Formations normes</label><br>
+                            <label><input type="checkbox" name="export_int_money" value="branding"> Marque / packaging</label><br>
+                            <label><input type="checkbox" name="export_int_money" value="administratif"> Demarches administratives</label><br>
+                            <label><input type="checkbox" name="export_int_money" value="niveau"> Mettre au niveau international</label><br>
+                            <label><input type="checkbox" name="export_int_money" value="prefinancer"> Prefinancer commande</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-Marché local (marchés de la localité) ce sont les marchés de quartier, villages ou petites localités. 
+            <div class="q-section">
+                <div class="q-title"><span class="pill-label">Questionnaire 5</span><strong>Chiffre d'affaires</strong></div>
+                <div class="q-grid">
+                    <div class="q-block">
+                        <p class="q-sub">Tranche annuelle</p>
+                        <label><input type="radio" name="revenue_range" value="<1m"> Moins de 1 million FCFA</label><br>
+                        <label><input type="radio" name="revenue_range" value="1-5m"> 1 a 5 millions</label><br>
+                        <label><input type="radio" name="revenue_range" value="5-10m"> 5 a 10 millions</label><br>
+                        <label><input type="radio" name="revenue_range" value="10-20m"> 10 a 20 millions</label><br>
+                        <label><input type="radio" name="revenue_range" value="20-50m"> 20 a 50 millions</label><br>
+                        <label><input type="radio" name="revenue_range" value="50-100m"> 50 a 100 millions</label><br>
+                        <label><input type="radio" name="revenue_range" value="100m+"> Plus de 100 millions</label><br>
+                    </div>
+                    <div class="q-block">
+                        <p class="q-sub">Montant exact (optionnel)</p>
+                        <input class="input" type="text" id="revenue_exact" placeholder="Chiffre d'affaires annuel en FCFA">
+                    </div>
+                </div>
+            </div>
 
-Marché urbain (ville de référence) Marchés municipaux et distributeurs urbains semi-formels 
-
-Marchés interurbains (hors région ou département) C’est un marché essentiel aux PME rurales souhaitant se projeter 
-
-Grande distribution / marchés formels ce marché inclut supermarchés, grandes et moyennes surfaces (GMS), hôtels, CHR. 
-
-Marché institutionnel, ce marché regroupe commandes publiques, approvisionnements des cantines, prisons, hôpitaux, achats organisationnels (PAM, UNHCR, écoles, organismes internationaux). 
-
-Marché numérique (e-commerce), il inclut plateformes comme Jumia, Glovo, Facebook Marketplace, Kiro’o. 
-
-Marchés extérieurs (export régional et international) CEMAC / CEEAC, ZLECAF, Union Européenne, Moyen-Orient, etc 
-
-Dans le cadre notre étude, nous intervenons dans les filières volaille, huile de palme, plantains, lait, poisson, manioc, fruits et légumes.  
-
-D’après vos connaissances, nous aimerons savoir dans quelles filières les PME interviennent le plus, afin de dresser un tableau et d’avoir une photo dans ce domaine ? (on ne vous demande pas les freins et les solutions, cela fera l’objet d’une recherche antérieure). Si un document récapitulatif de ces solutions existe, nous vous saurions gré de le mettre à notre disposition. 
-
-Selon votre institution quels sont les freins à l’accès des PME à ces marchés ? 
-
-Quelles sont les solutions que votre institution propose pour remédier à ces problèmes ? 
-
-Quelles sont les solutions que votre institution a déjà mises en place à cet effet ?</div>
-        <div class="control-row" style="justify-content:flex-end; margin-top:1rem;">
-            <button class="btn" type="button" id="close-questionnaire">Fermer</button>
         </div>
     </div>
 </div>
@@ -282,10 +613,128 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
     const orienteWrap = document.getElementById("oriente-wrap");
     const micModal = document.getElementById("mic-modal");
     const questionnaireModal = document.getElementById("questionnaire-modal");
+    const questionnaireField = document.getElementById("id_questionnaire_data");
+    const questionnaireStatus = document.getElementById("questionnaire-status");
+    const saveQuestionnaireBtn = document.getElementById("save-questionnaire");
+    if (questionnaireField && !questionnaireField.value) {
+        questionnaireField.value = "{}";
+    }
     document.getElementById("open-questionnaire").addEventListener("click", () => {
         questionnaireModal.style.display = "flex";
+        if (questionnaireStatus) questionnaireStatus.textContent = "";
     });
     document.getElementById("close-questionnaire").addEventListener("click", () => {
+        questionnaireModal.style.display = "none";
+    });
+    const getRadio = (name) => {
+        const el = document.querySelector(`input[name="${name}"]:checked`);
+        return el ? el.value : "";
+    };
+    const getChecks = (name) => Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map((el) => el.value);
+    const getVal = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : "";
+    };
+    function collectFreeMarket(code) {
+        return {
+            present: getRadio(`${code}_present`),
+            success: getVal(`${code}_success`),
+            blockers: getVal(`${code}_blockers`),
+        };
+    }
+    function collectQuestionnaireData() {
+        return {
+            intro: {
+                correct_name: getRadio("intro_correct_name"),
+                correct_name_text: getVal("intro_correct_name_text"),
+                contact_name: getVal("intro_contact_name"),
+                availability: getRadio("intro_available"),
+                callback_time: getVal("intro_callback_time"),
+            },
+            presentation: {
+                products: getChecks("prod_items"),
+                product_other: getVal("prod_other"),
+                years_activity: getVal("years_activity"),
+                workers_total: getVal("workers_total"),
+                location: {
+                    village: getVal("loc_village"),
+                    city: getVal("loc_city"),
+                    region: getVal("loc_region"),
+                },
+                volume: {
+                    unit: getRadio("volume_unit"),
+                    value: getVal("volume_value"),
+                    measure: getVal("volume_measure"),
+                },
+            },
+            markets_open: {
+                marche_local: collectFreeMarket("mlocal"),
+                grossistes: collectFreeMarket("grossistes"),
+                etat: collectFreeMarket("etat"),
+                numerique: collectFreeMarket("numerique"),
+                export_reg: collectFreeMarket("export_reg"),
+                export_int: collectFreeMarket("export_int"),
+            },
+            oriented: {
+                interest: getRadio("oriente_interest"),
+                local: {
+                    sell_more: getChecks("local_sell_more"),
+                    city_barriers: getChecks("local_city_barriers"),
+                    transport: getChecks("local_transport"),
+                    money: getChecks("local_money"),
+                },
+                wholesale: {
+                    knowledge: getChecks("wholesale_knowledge"),
+                    equipment: getChecks("wholesale_equipment"),
+                    transport: getChecks("wholesale_transport"),
+                    training: getChecks("wholesale_training"),
+                    money: getChecks("wholesale_money"),
+                },
+                state: {
+                    knowledge: getChecks("state_knowledge"),
+                    equipment: getChecks("state_equipment"),
+                    transport: getChecks("state_transport"),
+                    training: getChecks("state_training"),
+                    money: getChecks("state_money"),
+                },
+                digital: {
+                    knowledge: getChecks("digital_knowledge"),
+                    equipment: getChecks("digital_equipment"),
+                    delivery: getChecks("digital_delivery"),
+                    training: getChecks("digital_training"),
+                    money: getChecks("digital_money"),
+                },
+                export_reg: {
+                    knowledge: getChecks("export_reg_knowledge"),
+                    equipment: getChecks("export_reg_equipment"),
+                    transport: getChecks("export_reg_transport"),
+                    training: getChecks("export_reg_training"),
+                    money: getChecks("export_reg_money"),
+                },
+                export_int: {
+                    knowledge: getChecks("export_int_knowledge"),
+                    equipment: getChecks("export_int_equipment"),
+                    transport: getChecks("export_int_transport"),
+                    training: getChecks("export_int_training"),
+                    money: getChecks("export_int_money"),
+                },
+            },
+            revenue: {
+                range: getRadio("revenue_range"),
+                exact: getVal("revenue_exact"),
+            },
+        };
+    }
+    function syncQuestionnaire() {
+        if (!questionnaireField) return;
+        const payload = collectQuestionnaireData();
+        questionnaireField.value = JSON.stringify(payload);
+        if (questionnaireStatus) {
+            questionnaireStatus.textContent = "Réponses sauvegardées dans le formulaire";
+        }
+    }
+    saveQuestionnaireBtn?.addEventListener("click", () => {
+        syncQuestionnaire();
         questionnaireModal.style.display = "none";
     });
     const recordStatus = document.getElementById("record-status");
@@ -497,6 +946,7 @@ Quelles sont les solutions que votre institution a déjà mises en place à cet 
     });
 
     document.getElementById("call-form").addEventListener("submit", async (e) => {
+        syncQuestionnaire();
         formSubmitted = true;
         if (mediaRecorder && mediaRecorder.state !== "inactive") {
             e.preventDefault();

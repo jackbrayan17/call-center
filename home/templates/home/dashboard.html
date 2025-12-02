@@ -54,6 +54,60 @@
     </div>
     {% endif %}
 </section>
+
+<section class="panel fade-in" style="margin-top: 1rem;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+        <div>
+            <p class="muted" style="margin:0;">Activite utilisateurs</p>
+            <strong>{{ user_presence|length }} comptes</strong>
+        </div>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <span class="badge done"><span class="dot"></span>{{ online_count }} en ligne</span>
+            <span class="badge default"><span class="dot"></span>{{ offline_count }} hors ligne</span>
+        </div>
+    </div>
+    <div style="overflow-x:auto; margin-top:1rem;">
+        <table>
+            <thead>
+            <tr>
+                <th>Utilisateur</th>
+                <th>Statut</th>
+                <th>Derniere action</th>
+                <th>Duree derniere session</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for user in user_presence %}
+                <tr>
+                    <td>
+                        <strong>{{ user.username }}</strong><br>
+                        <span class="muted">Dernier login : {{ user.last_login_display|default:"Jamais" }}</span>
+                    </td>
+                    <td>
+                        {% if user.is_online %}
+                            <span class="badge done"><span class="dot"></span>En ligne</span>
+                            <div class="muted">Vu {{ user.last_activity_display }}</div>
+                        {% else %}
+                            <span class="badge default"><span class="dot"></span>Hors ligne</span>
+                            <div class="muted">Vu {{ user.last_activity_display }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div>{{ user.last_action }}</div>
+                        <div class="muted">{% if user.last_action_time %}{{ user.last_action_time }}{% else %}Jamais{% endif %}</div>
+                    </td>
+                    <td>
+                        {{ user.session_duration }}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4">Aucun utilisateur trouve.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
 <section class="panel fade-in" style="margin-top: 1rem;">
     <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
         <div>

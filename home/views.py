@@ -18,7 +18,7 @@ from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from .forms import CallRecordForm, ImportCompaniesForm
-from .models import CallRecord, Company
+from .models import AuditLog, CallRecord, Company, SessionSnapshot
 
 
 def _user_cards():
@@ -64,6 +64,85 @@ def _user_cards():
     return user_cards
 
 
+
+def _format_dt(dt):
+    if not dt:
+        return ""
+    try:
+        return timezone.localtime(dt).strftime("%d/%m %H:%M")
+    except Exception:
+        return dt.strftime("%d/%m %H:%M")
+
+
+def _format_duration(seconds: float | int | None) -> str:
+    secs = int(seconds or 0)
+    if secs <= 0:
+        return "-"
+    minutes, sec = divmod(secs, 60)
+    if minutes == 0:
+        return f"{sec}s"
+    hours, mins = divmod(minutes, 60)
+    if hours == 0:
+        return f"{mins}m {sec:02d}s"
+    days, hrs = divmod(hours, 24)
+    if days:
+        return f"{days}j {hrs:02d}h"
+    return f"{hrs}h {mins:02d}m"
+
+
+def _user_presence_rows():
+    # Utilisateurs et statut (en ligne, activite, action, duree)
+    User = get_user_model()
+    users = list(User.objects.all().order_by("username"))
+    now = timezone.now()
+    active_cutoff = now - timezone.timedelta(minutes=5)
+
+    sessions = list(SessionSnapshot.objects.select_related("user").order_by("-last_activity"))
+    sessions_by_user = {}
+    for snap in sessions:
+        if not snap.user_id:
+            continue
+        sessions_by_user.setdefault(snap.user_id, []).append(snap)
+
+    logs = AuditLog.objects.filter(user__isnull=False).order_by("-created_at")
+    last_action_map = {}
+    for log in logs:
+        if log.user_id not in last_action_map:
+            last_action_map[log.user_id] = log
+        if len(last_action_map) == len(users):
+            break
+
+    rows = []
+    for u in users:
+        user_sessions = sessions_by_user.get(u.id, [])
+        last_session = user_sessions[0] if user_sessions else None
+        active_session = next(
+            (s for s in user_sessions if s.is_active and s.last_activity and s.last_activity >= active_cutoff),
+            None,
+        )
+        online = active_session is not None
+        last_login = last_session.login_at if last_session else u.last_login
+        last_activity = last_session.last_activity if last_session else u.last_login
+        duration_seconds = 0
+        if last_session and last_session.login_at:
+            end_point = last_session.last_activity or last_session.login_at
+            duration_seconds = max(0, (end_point - last_session.login_at).total_seconds())
+
+        last_action = last_action_map.get(u.id)
+        rows.append(
+            {
+                "username": u.get_username(),
+                "is_online": online,
+                "last_login_display": _format_dt(last_login) if last_login else "Jamais",
+                "last_activity_display": _format_dt(last_activity) if last_activity else "Jamais",
+                "last_action": f"{last_action.method} {last_action.path}" if last_action else "Aucune action",
+                "last_action_time": _format_dt(last_action.created_at) if last_action else "",
+                "session_duration": _format_duration(duration_seconds),
+            }
+        )
+    return rows
+
+
 def _require_access(request: HttpRequest) -> bool:
     if not request.user.is_authenticated:
         messages.warning(request, "Veuillez vous connecter pour accéder aux appels.")
@@ -95,6 +174,9 @@ def home(request: HttpRequest) -> HttpResponse:
 
 def dashboard(request: HttpRequest) -> HttpResponse:
     _ensure_seed_data()
+    user_presence = _user_presence_rows()
+    online_count = sum(1 for row in user_presence if row.get("is_online"))
+    offline_count = max(0, len(user_presence) - online_count)
     total_companies = Company.objects.count()
     status_counts = Company.objects.values("status").annotate(total=Count("id"))
     status_map = {row["status"]: row["total"] for row in status_counts}
@@ -130,6 +212,9 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         "calls_with_audio": calls_with_audio,
         "calls_without_audio": calls_without_audio,
         "enquete_by_product": enquete_by_product,
+        "user_presence": user_presence,
+        "online_count": online_count,
+        "offline_count": offline_count,
     }
     return render(request, "home/dashboard.html", context)
 
@@ -320,6 +405,7 @@ def call_form(request: HttpRequest, company_id: int) -> HttpResponse:
             record.company = company
             if request.user.is_authenticated:
                 record.user = request.user
+            record.questionnaire_data = form.cleaned_data.get("questionnaire_data") or {}
             call_status = form.cleaned_data.get("call_status")
             if call_status == "callback":
                 company.status = "callback"

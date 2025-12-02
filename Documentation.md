@@ -76,3 +76,4 @@ Ce guide s'adresse à toute personne (même débutante) qui utilise l'applicatio
 
 ## Support
 Pour toute demande (accès, mots de passe, déploiement), contactez votre administrateur technique.
+

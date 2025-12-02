@@ -8,6 +8,7 @@ class CallRecordForm(forms.ModelForm):
     recording_started = forms.BooleanField(required=False, widget=forms.HiddenInput())
     skip_without_rec = forms.BooleanField(required=False, widget=forms.HiddenInput())
     recording_mime = forms.CharField(required=False, widget=forms.HiddenInput())
+    questionnaire_data = forms.JSONField(required=False, widget=forms.HiddenInput())
 
     class Meta:
         model = CallRecord
@@ -22,6 +23,7 @@ class CallRecordForm(forms.ModelForm):
             "recording_started",
             "skip_without_rec",
             "recording_mime",
+            "questionnaire_data",
         ]
         widgets = {
             "status_numero": forms.Select(attrs={"class": "input"}),
